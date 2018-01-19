@@ -16,7 +16,7 @@ module BlocRecord
 
       self.class.columns.each do |col|
         self.class.send(:attr_accessor, col)
-        instance_variable_set("@#{col}", options[col])
+        self.instance_variable_set("@#{col}", options[col])
       end
     end
   end
