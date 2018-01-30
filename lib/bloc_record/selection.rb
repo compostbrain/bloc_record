@@ -151,15 +151,19 @@ module Selection
   end
 
   def order(*args)
-     if args.count > 1
-       order = args.join(",")
-     else
-       order = args.first.to_s
-     end
+    normalized_args = []
+
+    args.each do |arg|
+      normalize_order_arg(arg, normalized_args)
+    end
+
+    order = normalized_args.join(",")
+
     rows = connection.execute <<-SQL
       SELECT * FROM #{table}
       ORDER BY #{order};
     SQL
+
     rows_to_array(rows)
   end
 
@@ -180,6 +184,12 @@ module Selection
           SELECT * FROM #{table}
           INNER JOIN #{args.first} ON #{args.first}.#{table}_id = #{table}.id
         SQL
+      when Hash
+        rows = connection.execute <<-SQL
+          SELECT * FROM #{table}
+          INNER JOIN #{args.first.key} ON #{args.first.key}.#{table}_id = #{table}.id
+          INNER JOIN #{args.first.value} ON #{args.first.value}.#{args.first.key}_id = #{args.first.key}.id;
+        SQL
       end
     end
 
@@ -188,6 +198,47 @@ module Selection
 
 
   private
+
+  VALID_ORDER_MODIFIERS = [:asc, :desc, :ASC, :DESC,
+                      "asc", "desc", "ASC", "DESC"]
+
+  def validate_order_modifier(value)
+    unless VALID_ORDER_MODIFIERS.include?(value)
+      raise ArguementError, "Order modifier \"#{value}\" is invalid. Valid order modifiers include: #{VALID_ORDER_MODIFIERS.inspect}"
+    end
+  end
+
+  def normalize_order_arg(arg, normalized_args)
+    case arg
+    when String
+      if arg.include? ","
+        args = arg.split(", ")
+        args.each {|arg| normalize_order_arg(arg, normalized_args)}
+      else
+        conditions = arg.split(" ")
+        key = conditions[0]
+        value = conditions[1]
+        if value == nil
+          arg = key.to_sym
+          normalize_order_arg(arg, normalized_args)
+        else
+          arg = {}
+          arg[key] = value
+          normalize_order_arg(arg, normalized_args)
+        end
+      end
+    when Symbol
+      normalized_args << arg.to_s
+    when Hash
+      value = arg.values.first
+      key = arg.keys.first
+      validate_order_modifier(value)
+      normalized_args << "#{key} #{value.to_s.upcase}"
+    else
+      raise "That is not a supported type"
+    end
+    normalized_args
+  end
 
   def init_object_from_row(row)
     if row
@@ -199,4 +250,5 @@ module Selection
   def rows_to_array(rows)
     rows.map { |row| new(Hash[columns.zip(row)]) }
   end
+
 end
