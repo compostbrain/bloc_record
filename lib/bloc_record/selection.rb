@@ -119,72 +119,6 @@ module Selection
       return to_enum(:find_in_batches, start: start, finish: finish, batch_size: batch_size, error_on_ignore: error_on_ignore) do
         total = apply_limits(relation, start, finish).size
         (total - 1).div(batch_size) + 1
-<<<<<<< HEAD
-      end
-    end
-
-    in_batches(of: batch_size, start: start, finish: finish, load: true, error_on_ignore: error_on_ignore) do |batch|
-      yield batch.to_a
-    end
-  end
-
-  def where(*args)
-    if args.count > 1
-      expression = args.shift
-      params = args
-    else
-      case args.first
-      when String
-        expression = args.first
-      when Hash
-        expression_hash = BlocRecord::Utility.convert_keys(args.first)
-        expression = expression_hash.map {|key, value|  "#{key}=#{BlocRecord::Utility.sql_strings(value)}"}.join(" and ")
-      end
-    end
-
-    sql = <<-SQL
-      SELECT #{columns.join ","} FROM #{table}
-      WHERE #{expression};
-    SQL
-
-    rows = connection.execute(sql, params)
-    rows_to_array(rows)
-  end
-
-  def order(*args)
-     if args.count > 1
-       order = args.join(",")
-     else
-       order = args.first.to_s
-     end
-    rows = connection.execute <<-SQL
-      SELECT * FROM #{table}
-      ORDER BY #{order};
-    SQL
-    rows_to_array(rows)
-  end
-
-  def join(*args)
-    if args.count > 1
-      joins = args.map { |arg| "INNER JOIN #{arg} ON #{arg}.#{table}_id = #{table}.id"}.join(" ")
-      rows = connection.execute <<-SQL
-        SELECT * FROM #{table} #{joins}
-      SQL
-    else
-      case args.first
-      when String
-        rows = connection.execute <<-SQL
-          SELECT * FROM #{table} #{BlocRecord::Utility.sql_strings(args.first)};
-        SQL
-      when Symbol
-        rows = connection.execute <<-SQL
-          SELECT * FROM #{table}
-          INNER JOIN #{args.first} ON #{args.first}.#{table}_id = #{table}.id
-        SQL
-      end
-    end
-
-=======
       end
     end
 
@@ -259,7 +193,6 @@ module Selection
       end
     end
 
->>>>>>> 008d17724e4e2babb39856525422814f48f807b2
     rows_to_array(rows)
   end
 
@@ -315,7 +248,9 @@ module Selection
   end
 
   def rows_to_array(rows)
-    rows.map { |row| new(Hash[columns.zip(row)]) }
+    collection = BlocRecord::Collection.new
+    rows.each { |row| collection << new(Hash[columns.zip(row)]) }
+    collection
   end
 
 end

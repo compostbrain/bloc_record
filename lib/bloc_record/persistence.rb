@@ -30,8 +30,28 @@ module Persistence
     true
   end
 
+  def update_attribute(attribute, value)
+    self.class.update(self.id, { attribute => value })
+  end
+
+  def update_attributes(updates)
+    self.class.update(self.id, updates)
+  end
+
+  def method_missing(m, *args, &block)
+    if m.to_s =~ /^update_(.*)$/ && columns.include?($1)
+      self.class.update(self.id, { $1.to_sym => args.first })
+    else
+      raise ArgumentError, "#{$1} is not an existing attribute"
+    end
+  end
 
   module ClassMethods
+
+    def update_all(updates)
+      update(nil, updates)
+    end
+
     def create(attrs)
       attrs = BlocRecord::Utility.convert_keys(attrs)
       attrs.delete "id"
@@ -46,6 +66,29 @@ module Persistence
       data["id"] = connection.execute("SELECT last_insert_rowid();")[0][0]
       new(data)
     end
-  end
 
+    def update(id, updates)
+      # assumes that if id is an array, updates is an array of hashes corresponding to ids to be updated
+      case id
+      when Array
+        id.each_with_index do |id, index|
+            update(id, updates[index])
+        end
+      else
+        updates = BlocRecord::Utility.convert_keys(updates)
+        updates.delete "id"
+
+        updates_array = updates.map { |key, value| "#{key}=#{BlocRecord::Utility.sql_strings(value)}" }
+
+        connection.execute <<-SQL
+          UPDATE #{table}
+          SET #{updates_array * ","}
+          WHERE id = #{id};
+        SQL
+
+        true
+      end
+    end
+    
+  end
 end
