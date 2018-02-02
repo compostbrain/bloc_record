@@ -96,7 +96,8 @@ module Selection
     if m.to_s =~ /^find_by_(.*)$/ && columns.include?($1)
       find_by($1.to_sym, args.first)
     else
-      raise ArgumentError, "#{$1} is not an existing attribute"
+      puts m
+      raise ArgumentError, "#{$1} is not an existing attribute in find"
     end
   end
 
