@@ -1,6 +1,6 @@
 require 'sqlite3'
 require 'bloc_record/schema'
-
+require 'pry'
 
 module Persistence
 
@@ -35,6 +35,7 @@ module Persistence
   end
 
   def update_attributes(updates)
+    return if updates.empty?
     self.class.update(self.id, updates)
   end
 
@@ -89,6 +90,6 @@ module Persistence
         true
       end
     end
-    
+
   end
 end

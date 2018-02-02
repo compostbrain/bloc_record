@@ -19,12 +19,12 @@ module BlocRecord
       # return an array that includes any items where arg key/value pair
       # matches
       self.map do |item|
-        item if item[arg.key] == arg.value
+        item if item[arg.keys.first] == arg.values.first
       end
     end
 
     def not(arg)
-      self.map {|item| item if item[arg.key] != arg.value }
+      self.map {|item| item if item[arg.keys.first] != arg.values.first }
     end
   end
 end
