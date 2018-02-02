@@ -72,7 +72,13 @@ module Persistence
       true
     end
 
-    def destroy_all(conditions_hash=nil)
+    def destroy_all(conditions = nil)
+      conditions_hash = {}
+      conditions_hash = conditions if Hash === conditions
+      unless conditions == nil || Hash === conditions
+        normalize_destroy_all_inputs(conditions, conditions_hash)
+      end
+
       if conditions_hash && !conditions_hash.empty?
         conditions_hash = BlocRecord::Utility.convert_keys(conditions_hash)
         conditions = conditions_hash.map {|key, value| "#{key}=#{BlocRecord::Utility.sql_strings(value)}"}.join(" and ")
@@ -89,7 +95,26 @@ module Persistence
 
       true
     end
-     
+
+    def normalize_destroy_all_inputs(conditions, conditions_hash)
+      case conditions
+      when Array # assumes key at even indexes and value at odd indexes
+        conditions.each_with_index do |input, index|
+          next if index % 2 == 1
+          input_minus_whitespace = input.gsub(/\s+/, "")
+          key = input_minus_whitespace[/^(.*)\=/, 1]
+          value = conditions[index + 1]
+          conditions_hash[key.to_sym] = value
+        end
+      when String # assumes string in format "phone_number = '999-999-9999'"
+        conditions_minus_whitespace = conditions.gsub(/\s+/, "")
+        key = conditions_minus_whitespace[/^(.*)\=/, 1]
+        value = conditions_minus_whitespace[/\=(.*)/, 1]
+        conditions_hash[key.to_sym] = value
+      end
+      conditions_hash
+    end
+
     def create(attrs)
       attrs = BlocRecord::Utility.convert_keys(attrs)
       attrs.delete "id"

@@ -30,5 +30,9 @@ module BlocRecord
       self.map {|item| item if item[arg.keys.first] != arg.values.first }
 
     end
+
+    def destroy_all
+      self.each { |item| item.destroy }
+    end
   end
 end
