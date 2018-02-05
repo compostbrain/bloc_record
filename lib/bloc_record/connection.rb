@@ -16,7 +16,7 @@ module Connection
   def execute(sql:, params: nil)
     case BlocRecord.db_type
     when :sqlite
-      params == nil ? execute(sql) : execute(sql, params)
+      params == nil ? connection.execute(sql) : connection.execute(sql, params)
     when :pg
       params == nil ? connection.exec(sql) : connection.exec_params(sql, params)
   end
