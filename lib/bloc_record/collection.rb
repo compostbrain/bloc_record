@@ -8,11 +8,7 @@ module BlocRecord
     end
 
     def take(num = 1)
-      new_collection = BlocRecord::Collection.new
-      num.times do
-        new_collection << self.shift
-      end
-      new_collection
+      self.sample(num)
     end
 
     def where(arg)
