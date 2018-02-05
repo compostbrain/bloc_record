@@ -1,7 +1,7 @@
 module BlocRecord
-  def self.connect_to(filename, db_type)
+  def self.connect_to(filename:, db_type:)
     @database_filename = filename
-    @db_type = db_type.to_s
+    @db_type = db_type
   end
 
   def self.database_filename
