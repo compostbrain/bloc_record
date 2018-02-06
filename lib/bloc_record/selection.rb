@@ -92,39 +92,46 @@ module Selection
     rows_to_array(rows)
   end
 
-  def method_missing(m, *args, &block)
-    if m.to_s =~ /^find_by_(.*)$/ && columns.include?($1)
-      find_by($1.to_sym, args.first)
+  def method_missing(m, *args)
+    if m.to_s =~ /^find_by_(.*)$/ && columns.include?(Regexp.last_match(1))
+      find_by(Regexp.last_match(1).to_sym, args.first)
     else
-      puts m
-      raise ArgumentError, "#{$1} is not an existing attribute in find"
+
+      raise ArgumentError, "#{Regexp.last_match(1)} is not an existing attribute"
+
     end
   end
 
-  def find_each(start: nil, finish: nil, batch_size: 1000, error_on_ignore: nil)
+  def find_each(start: 0, batch_size: 1000)
+    rows = connection.excecute <<-SQL
+      SELECT #{columns.join(',')} FROM #{table}
+      LIMIT #{batch_size} OFFSET #{start};
+    SQL
+
     if block_given?
-       find_in_batches(start: start, finish: finish, batch_size: batch_size, error_on_ignore: error_on_ignore) do |records|
-         records.each { |record| yield record }
-       end
+      rows_to_array(rows).each { |object| yield object }
     else
-       enum_for(:find_each, start: start, finish: finish, batch_size: batch_size, error_on_ignore: error_on_ignore) do
-         relation = self
-         apply_limits(relation, start, finish).size
-       end
+      rows_to_array(rows)
     end
   end
 
-  def find_in_batches(start: nil, finish: nil, batch_size: 1000, error_on_ignore: nil)
-    relation = self
-    unless block_given?
-      return to_enum(:find_in_batches, start: start, finish: finish, batch_size: batch_size, error_on_ignore: error_on_ignore) do
-        total = apply_limits(relation, start, finish).size
-        (total - 1).div(batch_size) + 1
-      end
-    end
+  def find_in_batches(start: 0, batch_size: 1000)
+    rows = get_batch_rows(columns, table, batch_size, start)
+    if block_given?
 
-    in_batches(of: batch_size, start: start, finish: finish, load: true, error_on_ignore: error_on_ignore) do |batch|
-      yield batch.to_a
+      records = rows_to_array(rows)
+      while records.any?
+        records_size = records.size
+        primary_key_offset = records.last[:id]
+
+        yield records
+
+        break if records_size < batch_size
+        rows = get_batch_rows(columns, table, batch_size, primary_key_offset)
+        records = rows_to_array(rows)
+      end
+    else
+      rows_to_array(rows)
     end
   end
 
@@ -138,12 +145,12 @@ module Selection
         expression = args.first
       when Hash
         expression_hash = BlocRecord::Utility.convert_keys(args.first)
-        expression = expression_hash.map {|key, value|  "#{key}=#{BlocRecord::Utility.sql_strings(value)}"}.join(" and ")
+        expression = expression_hash.map { |key, value| "#{key}=#{BlocRecord::Utility.sql_strings(value)}" }.join(' and ')
       end
     end
 
     sql = <<-SQL
-      SELECT #{columns.join ","} FROM #{table}
+      SELECT #{columns.join ','} FROM #{table}
       WHERE #{expression};
     SQL
 
@@ -158,7 +165,7 @@ module Selection
       normalize_order_arg(arg, normalized_args)
     end
 
-    order = normalized_args.join(",")
+    order = normalized_args.join(',')
 
     rows = connection.execute <<-SQL
       SELECT * FROM #{table}
@@ -170,7 +177,7 @@ module Selection
 
   def join(*args)
     if args.count > 1
-      joins = args.map { |arg| "INNER JOIN #{arg} ON #{arg}.#{table}_id = #{table}.id"}.join(" ")
+      joins = args.map { |arg| "INNER JOIN #{arg} ON #{arg}.#{table}_id = #{table}.id" }.join(' ')
       rows = connection.execute <<-SQL
         SELECT * FROM #{table} #{joins}
       SQL
@@ -197,11 +204,17 @@ module Selection
     rows_to_array(rows)
   end
 
-
   private
 
   VALID_ORDER_MODIFIERS = [:asc, :desc, :ASC, :DESC,
-                      "asc", "desc", "ASC", "DESC"]
+                           'asc', 'desc', 'ASC', 'DESC'].freeze
+
+  def get_batch_rows(columns, table, batch_size, offset)
+    connection.execute <<-SQL
+      SELECT #{columns.join(',')} FROM #{table}
+      LIMIT #{batch_size} OFFSET #{offset};
+    SQL
+  end
 
   def validate_order_modifier(value)
     unless VALID_ORDER_MODIFIERS.include?(value)
@@ -212,14 +225,14 @@ module Selection
   def normalize_order_arg(arg, normalized_args)
     case arg
     when String
-      if arg.include? ","
-        args = arg.split(", ")
-        args.each {|arg| normalize_order_arg(arg, normalized_args)}
+      if arg.include? ','
+        args = arg.split(', ')
+        args.each { |arg| normalize_order_arg(arg, normalized_args) }
       else
-        conditions = arg.split(" ")
+        conditions = arg.split(' ')
         key = conditions[0]
         value = conditions[1]
-        if value == nil
+        if value.nil?
           arg = key.to_sym
           normalize_order_arg(arg, normalized_args)
         else
@@ -236,7 +249,7 @@ module Selection
       validate_order_modifier(value)
       normalized_args << "#{key} #{value.to_s.upcase}"
     else
-      raise "That is not a supported type"
+      raise 'That is not a supported type'
     end
     normalized_args
   end
@@ -253,5 +266,4 @@ module Selection
     rows.each { |row| collection << new(Hash[columns.zip(row)]) }
     collection
   end
-
 end
