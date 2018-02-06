@@ -48,7 +48,11 @@ module Persistence
   def method_missing(m, *args, &block)
     if m.to_s =~ /^update_(.*)$/ && columns.include?($1)
       self.class.update(self.id, { $1.to_sym => args.first })
+    elsif m.to_s = /^to_ary(.*)$/
+      return
+
     else
+      puts m
       raise ArgumentError, "#{$1} is not an existing attribute"
     end
   end

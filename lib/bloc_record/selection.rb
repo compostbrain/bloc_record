@@ -96,7 +96,9 @@ module Selection
     if m.to_s =~ /^find_by_(.*)$/ && columns.include?(Regexp.last_match(1))
       find_by(Regexp.last_match(1).to_sym, args.first)
     else
+
       raise ArgumentError, "#{Regexp.last_match(1)} is not an existing attribute"
+
     end
   end
 
