@@ -4,7 +4,7 @@ require 'active_support/inflector'
 module Associations
   def has_many(association)
     define_method(association) do
-      rows = self.class.connection.execute <<-SQL
+      rows = self.class.execute <<-SQL
         SELECT * FROM #{association.to_s.singularize}
         WHERE #{self.class.table}_id = #{self.id}
       SQL
@@ -44,8 +44,8 @@ module Associations
         SELECT * FROM #{association_name}
         WHERE #{self.class.table}_id = #{self.id}
       SQL
-      
-      class_name = association_name.constantize
+
+      class_name = association_name.clasify.constantize
 
       if row
         data = Hash[class_name.columns.zip(row)]

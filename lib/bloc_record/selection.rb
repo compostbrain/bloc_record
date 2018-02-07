@@ -10,7 +10,7 @@ module Selection
     if ids.length == 1
       find_one(ids.first)
     else
-      rows = connection.execute <<-SQL
+      rows = execute <<-SQL
         SELECT #{columns.join ','} FROM #{table}
         WHERE id IN (#{ids.join(',')});
       SQL
@@ -39,7 +39,7 @@ module Selection
 
   def take(num = 1)
     if num > 1
-      rows = connection.execute <<-SQL
+      rows = execute <<-SQL
         SELECT #{columns.join ','} FROM #{table}
         ORDER BY random()
         LIMIT #{num};
@@ -85,7 +85,7 @@ module Selection
   end
 
   def all
-    rows = connection.execute <<-SQL
+    rows = execute <<-SQL
       SELECT #{columns.join ','} FROM #{table};
     SQL
 
@@ -154,7 +154,7 @@ module Selection
       WHERE #{expression};
     SQL
 
-    rows = connection.execute(sql, params)
+    rows = execute(sql, params)
     rows_to_array(rows)
   end
 
@@ -167,7 +167,7 @@ module Selection
 
     order = normalized_args.join(',')
 
-    rows = connection.execute <<-SQL
+    rows = execute <<-SQL
       SELECT * FROM #{table}
       ORDER BY #{order};
     SQL
@@ -177,23 +177,28 @@ module Selection
 
   def join(*args)
     if args.count > 1
+<<<<<<< HEAD
       joins = args.map { |arg| "INNER JOIN #{arg} ON #{arg}.#{table}_id = #{table}.id" }.join(' ')
       rows = connection.execute <<-SQL
+=======
+      joins = args.map { |arg| "INNER JOIN #{arg} ON #{arg}.#{table}_id = #{table}.id"}.join(" ")
+      rows = execute <<-SQL
+>>>>>>> b6389b075e23f18d2d7ab3b734ad2dd5c1bf744a
         SELECT * FROM #{table} #{joins}
       SQL
     else
       case args.first
       when String
-        rows = connection.execute <<-SQL
+        rows = execute <<-SQL
           SELECT * FROM #{table} #{BlocRecord::Utility.sql_strings(args.first)};
         SQL
       when Symbol
-        rows = connection.execute <<-SQL
+        rows = execute <<-SQL
           SELECT * FROM #{table}
           INNER JOIN #{args.first} ON #{args.first}.#{table}_id = #{table}.id
         SQL
       when Hash
-        rows = connection.execute <<-SQL
+        rows = execute <<-SQL
           SELECT * FROM #{table}
           INNER JOIN #{args.first.key} ON #{args.first.key}.#{table}_id = #{table}.id
           INNER JOIN #{args.first.value} ON #{args.first.value}.#{args.first.key}_id = #{args.first.key}.id;
