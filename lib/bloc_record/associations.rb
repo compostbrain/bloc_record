@@ -45,7 +45,7 @@ module Associations
         WHERE #{self.class.table}_id = #{self.id}
       SQL
 
-      class_name = association_name.clasify.constantize
+      class_name = association_name.classify.constantize
 
       if row
         data = Hash[class_name.columns.zip(row)]
